@@ -5,10 +5,10 @@ imageData = [
     [0, 0, 0, 255, 0, 0, 0],
     [0, 0, 255, 0, 255, 0, 0],
     [0, 255, 0, 0, 0, 255, 0],
-    [255, 0, 0, 0, 0, 0, 255],
-    [0, 255, 0, 0, 0, 255, 0],
-    [0, 0, 255, 0, 255, 0, 0],
-    [0, 0, 0, 255, 0, 0, 0],
+    [255, 2550, 255, 255, 255, 255, 255],
+    [0, 0, 255, 255, 255, 0, 0],
+    [0, 0, 255, 255, 255, 0, 0],
+    [0, 0, 255, 255, 255, 0, 0],
 ]
 
 testInfo = [
@@ -28,10 +28,10 @@ for test in testInfo:
 
     for y in range(bitmap.height):
         for x in range(bitmap.width):
-            r = imageData[x][y] if test["Red"] else 0
-            g = imageData[x][y] if test["Green"] else 0
-            b = imageData[x][y] if test["Blue"] else 0
-            a = imageData[x][y] if test["Alpha"] else 255
+            r = imageData[y][x] if test["Red"] else 0
+            g = imageData[y][x] if test["Green"] else 0
+            b = imageData[y][x] if test["Blue"] else 0
+            a = imageData[y][x] if test["Alpha"] else 255
             bitmap.set_pixel(x, y, r, g, b, a)
 
     with open(test["File"], 'wb') as f:
