@@ -120,8 +120,18 @@ class SimpleBitmap:
         if self.withAlpha:
             # From https://upload.wikimedia.org/wikipedia/commons/7/75/BMPfileFormat.svg
             # The mask channels are written in RGBA order.
-            # The mask information represents where to find the channel in the data. Since we write the 
-            # data as BGRA, the mask information is written as ABGR.
+            # The mask information represents where to find each channel in the data. Since we write the 
+            # data as BGRA (big endian) it looks like:
+            #   BBGGRRAA
+            # 0xFF000000 - Blue Channel
+            # 0x00FF0000 - Green Channel
+            # 0x0000FF00 - Red Channel
+            # 0x000000FF - Alpha Channel
+            # Then the mask is reordered to match what the header requires, in RGBA order, so it looks like:
+            # 0x0000FF00 - Red Channel
+            # 0x00FF0000 - Green Channel
+            # 0xFF000000 - Blue Channel
+            # 0x000000FF - Alpha Channel
             rgbaMask = [0x0000FF00, 0x00FF0000, 0xFF000000, 0x000000FF] # RGBA order
             for i in range(4):
                 mask = rgbaMask[i].to_bytes(4, 'big') # We use big endian here to match the layout on disk.
