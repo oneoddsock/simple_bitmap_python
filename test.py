@@ -31,7 +31,7 @@ for test in testInfo:
             r = imageData[y][x] if test["Red"] else 0
             g = imageData[y][x] if test["Green"] else 0
             b = imageData[y][x] if test["Blue"] else 0
-            a = 128 if test["Alpha"] else 255
+            a = 128 if bitmap.hasAlpha else 255
             bitmap.set_pixel(x, y, r, g, b, a)
 
     with open(test["File"], 'wb') as f:

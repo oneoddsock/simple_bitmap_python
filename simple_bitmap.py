@@ -7,34 +7,46 @@ class SimpleBitmap:
     The algorithm is extremely basic to minimize dependencies.
     """
     
-    width = 0
-    height = 0
-    withAlpha = False
-    bmp = None
-    stride = 0
-    bytesPerPixel = 0
-    pixelOffset = 0
+    _width = 0
+    _height = 0
+    _hasAlpha = False
+    _bmp = None
+    _stride = 0
+    _bytesPerPixel = 0
+    _pixelOffset = 0
 
+    @property
+    def width(self):
+        return self._width
+    
+    @property
+    def height(self):
+        return self._height
+    
+    @property
+    def hasAlpha(self):
+        return self._hasAlpha
+    
     def __init__(self, width, height, withAlpha = False):
-        self.width = width
-        self.height = height
-        self.withAlpha = withAlpha
+        self._width = width
+        self._height = height
+        self._hasAlpha = withAlpha
 
         dibSize = 40 # BITMAPINFOHEADER
         bitsPerPixel = 24
 
-        if self.withAlpha:
+        if self._hasAlpha:
             dibSize = 56 # BITMAPV3INFOHEADER
             bitsPerPixel = 32 # include alpha channel
 
-        self.bytesPerPixel = bitsPerPixel // 8
+        self._bytesPerPixel = bitsPerPixel // 8
 
         # The stride is the number of bytes in a row of pixels. It is padded to a multiple of 4 bytes.
         # This is a little bit twiddling trick to achieve that, so that if it is already a multiple of
         # 4, it will not change, otherwise it will be rounded up to the next multiple.
-        self.stride = (self.width * self.bytesPerPixel + 3) & ~3
+        self._stride = (self._width * self._bytesPerPixel + 3) & ~3
 
-        self.pixelOffset = 14 + dibSize
+        self._pixelOffset = 14 + dibSize
 
         self.__init_bmp(dibSize, bitsPerPixel)
 
@@ -44,35 +56,35 @@ class SimpleBitmap:
     
     def set_pixel(self, x, y, r, g, b, a = 255):
         """Set the pixel at (x, y) to the given color as (r, g, b, a)."""
-        assert x >= 0 and x < self.width
-        assert y >= 0 and y < self.height
-        offset = self.pixelOffset + y * self.stride + x * self.bytesPerPixel
+        assert x >= 0 and x < self._width
+        assert y >= 0 and y < self._height
+        offset = self._pixelOffset + y * self._stride + x * self._bytesPerPixel
         # The ordering seems odd, but it is because the pixel data is stored as ARGB in little endian, so it serializes as BGRA.
         # When BGRA is loaded on a little endian platform, it appears as ARGB in memory.
-        self.bmp[offset] = self.__fix_value(b)
-        self.bmp[offset + 1] = self.__fix_value(g)
-        self.bmp[offset + 2] = self.__fix_value(r)
-        if self.withAlpha:
-            self.bmp[offset + 3] = self.__fix_value(a)
+        self._bmp[offset] = self.__fix_value(b)
+        self._bmp[offset + 1] = self.__fix_value(g)
+        self._bmp[offset + 2] = self.__fix_value(r)
+        if self._hasAlpha:
+            self._bmp[offset + 3] = self.__fix_value(a)
 
     def get_pixel(self, x, y):
         """Get the color of the pixel at (x, y) as (r, g, b, a)."""
-        assert x >= 0 and x < self.width
-        assert y >= 0 and y < self.height
-        offset = self.pixelOffset + y * self.stride + x * self.bytesPerPixel
-        b = self.bmp[offset]
-        g = self.bmp[offset + 1]
-        r = self.bmp[offset + 2]
+        assert x >= 0 and x < self._width
+        assert y >= 0 and y < self._height
+        offset = self._pixelOffset + y * self._stride + x * self._bytesPerPixel
+        b = self._bmp[offset]
+        g = self._bmp[offset + 1]
+        r = self._bmp[offset + 2]
         a = 255
-        if self.withAlpha:
-            a = self.bmp[offset + 3]
+        if self._hasAlpha:
+            a = self._bmp[offset + 3]
         return (r, g, b, a)
 
     def __get_unique_color_count(self):
         """Returns the number of unique colors in the image."""
         map = {}
-        for y in range(self.height):
-            for x in range(self.width):
+        for y in range(self._height):
+            for x in range(self._width):
                 pixel = self.get_pixel(x, y)
                 pixelValue = pixel[3] + pixel[2] * 256 + pixel[1] * 256 * 256 + pixel[0] * 256 * 256 * 256
                 if pixelValue in map:
@@ -101,31 +113,31 @@ class SimpleBitmap:
         # It allows bitmaps to be loaded directly into memory and used without any conversion on those processors.
         zero = [0, 0, 0, 0]
         pixPerMeter = (2835).to_bytes(4, 'little') # 72 DPI
-        fileSize = self.pixelOffset + self.height * self.stride
+        fileSize = self._pixelOffset + self._height * self._stride
 
-        self.bmp = bytearray(fileSize)
+        self._bmp = bytearray(fileSize)
 
         # Bitmap file header 
-        self.__copy_literal(self.bmp, 0, [0x42, 0x4D]) # BM
-        self.__copy_number(self.bmp, 2, fileSize) # File size
-        self.__copy_literal(self.bmp, 6, zero) # Reserved
-        self.__copy_number(self.bmp, 10, self.pixelOffset) # The offset to the pixel data in the file.
+        self.__copy_literal(self._bmp, 0, [0x42, 0x4D]) # BM
+        self.__copy_number(self._bmp, 2, fileSize) # File size
+        self.__copy_literal(self._bmp, 6, zero) # Reserved
+        self.__copy_number(self._bmp, 10, self._pixelOffset) # The offset to the pixel data in the file.
 
         # DIB header
-        self.__copy_number(self.bmp, 14, dibSize) # DIB header size
-        self.__copy_number(self.bmp, 18, self.width) # Image width
-        self.__copy_number(self.bmp, 22, -self.height, True) # Negative height for top-down bitmap
-        self.__copy_number(self.bmp, 26, 1) # Planes (always 1)
-        self.__copy_number(self.bmp, 28, bitsPerPixel) # Bits per pixel (24 or 32 in our case)
-        self.__copy_literal(self.bmp, 30, zero) # Compression BI_RGB -- no compression
-        self.__copy_literal(self.bmp, 34, zero) # Image size -- can use 0 for BI_RGB
-        self.__copy_literal(self.bmp, 38, pixPerMeter) # X pixels per meter: 72 DPI
-        self.__copy_literal(self.bmp, 42, pixPerMeter) # Y pixels per meter: 72 DPI
-        self.__copy_literal(self.bmp, 46, zero) # Colors used -- we update this later when we get an image
-        self.__copy_literal(self.bmp, 50, zero) # Important colors -- zero implies all of them are important
+        self.__copy_number(self._bmp, 14, dibSize) # DIB header size
+        self.__copy_number(self._bmp, 18, self._width) # Image width
+        self.__copy_number(self._bmp, 22, -self._height, True) # Negative height for top-down bitmap
+        self.__copy_number(self._bmp, 26, 1) # Planes (always 1)
+        self.__copy_number(self._bmp, 28, bitsPerPixel) # Bits per pixel (24 or 32 in our case)
+        self.__copy_literal(self._bmp, 30, zero) # Compression BI_RGB -- no compression
+        self.__copy_literal(self._bmp, 34, zero) # Image size -- can use 0 for BI_RGB
+        self.__copy_literal(self._bmp, 38, pixPerMeter) # X pixels per meter: 72 DPI
+        self.__copy_literal(self._bmp, 42, pixPerMeter) # Y pixels per meter: 72 DPI
+        self.__copy_literal(self._bmp, 46, zero) # Colors used -- we update this later when we get an image
+        self.__copy_literal(self._bmp, 50, zero) # Important colors -- zero implies all of them are important
 
         # Alpha mask for V3 header
-        if self.withAlpha:
+        if self._hasAlpha:
             # From https://upload.wikimedia.org/wikipedia/commons/7/75/BMPfileFormat.svg
             # The mask channels are written in RGBA order.
             # The mask information represents where to find each channel in the data. Since we write the 
@@ -143,20 +155,20 @@ class SimpleBitmap:
             rgbaMask = [0x0000FF00, 0x00FF0000, 0xFF000000, 0x000000FF] # RGBA order
             for i in range(4):
                 mask = rgbaMask[i].to_bytes(4, 'big') # We use big endian here to match the layout on disk.
-                self.__copy_literal(self.bmp, 54 + i * 4, mask)
+                self.__copy_literal(self._bmp, 54 + i * 4, mask)
 
 
     def get_image(self):
         """Generates the image as a bitmap."""
 
-        result = bytearray(self.bmp)
+        result = bytearray(self._bmp)
         self.__copy_number(result, 46, self.__get_unique_color_count())
         return result
 
     def __str__(self):
         result = ''
-        for y in range(self.height):
-            for x in range(self.width):
+        for y in range(self._height):
+            for x in range(self._width):
                 result += '*' if self.get_pixel(x, y) else ' '
             result += '\n'
         return
