@@ -13,6 +13,9 @@ class SimpleBitmap:
         self.width = width
         self.height = height
         self.withAlpha = withAlpha
+        # The stride is the number of bytes in a row of pixels. It is padded to a multiple of 4 bytes.
+        # This is a little bit twiddling trick to achieve that, so that if it is already a multiple of
+        # 4, it will not change, otherwise it will be rounded up to the next multiple.
         self.stride = (self.width * 3 + 3) & ~3
 
         dibSize = 40 # BITMAPINFOHEADER
